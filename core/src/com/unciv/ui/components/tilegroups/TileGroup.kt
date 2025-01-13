@@ -2,17 +2,11 @@ package com.unciv.ui.components.tilegroups
 
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.scenes.scene2d.Group
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.ruleset.unique.LocalUniqueCache
-import com.unciv.ui.components.tilegroups.layers.TileLayerBorders
-import com.unciv.ui.components.tilegroups.layers.TileLayerCityButton
-import com.unciv.ui.components.tilegroups.layers.TileLayerFeatures
-import com.unciv.ui.components.tilegroups.layers.TileLayerMisc
-import com.unciv.ui.components.tilegroups.layers.TileLayerOverlay
-import com.unciv.ui.components.tilegroups.layers.TileLayerTerrain
-import com.unciv.ui.components.tilegroups.layers.TileLayerUnitArt
-import com.unciv.ui.components.tilegroups.layers.TileLayerUnitFlag
+import com.unciv.ui.components.tilegroups.layers.*
 import com.unciv.utils.DebugUtils
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -49,13 +43,13 @@ open class TileGroup(
     @Suppress("LeakingThis") val layerBorders = TileLayerBorders(this, groupSize)
     @Suppress("LeakingThis") val layerMisc = TileLayerMisc(this, groupSize)
     @Suppress("LeakingThis") val layerOverlay = TileLayerOverlay(this, groupSize)
-    @Suppress("LeakingThis") val layerUnitArt = TileLayerUnitArt(this, groupSize)
+    @Suppress("LeakingThis") val layerUnitArt = TileLayerUnitSprite(this, groupSize)
     @Suppress("LeakingThis") val layerUnitFlag = TileLayerUnitFlag(this, groupSize)
     @Suppress("LeakingThis") val layerCityButton = TileLayerCityButton(this, groupSize)
 
     init {
-        isTransform = false // performance helper - nothing here is rotated or scaled
         this.setSize(groupSize, groupSize)
+        this.isTransform = false // Cannot be a NonTransformGroup as this causes font-rendered terrain to be upside-down
 
         this.addActor(layerTerrain)
         this.addActor(layerFeatures)
@@ -103,7 +97,9 @@ open class TileGroup(
         layerOverlay.hideHighlight()
         layerOverlay.hideCrosshair()
         layerOverlay.hideGoodCityLocationIndicator()
-
+        
+        val wasPreviouslyVisible = layerTerrain.isVisible
+        
         // Show all layers by default
         setAllLayersVisible(true)
 
@@ -127,6 +123,14 @@ open class TileGroup(
         layerUnitArt.update(viewingCiv, localUniqueCache)
         layerUnitFlag.update(viewingCiv, localUniqueCache)
         layerCityButton.update(viewingCiv, localUniqueCache)
+        
+        if (!wasPreviouslyVisible){ // newly revealed tile!
+            layerTerrain.parent.addAction( 
+                Actions.sequence(
+                    Actions.targeting(layerTerrain, Actions.alpha(0f)),
+                    Actions.targeting(layerTerrain, Actions.fadeIn(0.5f)),
+                ))
+        }
     }
 
     private fun removeMissingModReferences() {
